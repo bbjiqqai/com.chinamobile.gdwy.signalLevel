@@ -149,7 +149,7 @@ public class SignalLevel extends CordovaPlugin {
     public boolean hasPermisssion() {
         for (String p : permissions) {
             if (!PermissionHelper.hasPermission(this, p)) {
-                LOG.e(LOG_TAG, p + "没权限");
+                LOG.e(LOG_TAG, p + "没权限11111");
                 return false;
             }
         }

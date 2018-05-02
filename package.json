@@ -1,11 +1,19 @@
 {
   "name": "com.chinamobile.gdwy.signallevel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "信号电平更新",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bbjiqqai/com.chinamobile.gdwy.signalLevel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bbjiqqai/com.chinamobile.gdwy.signalLevel/issues"
+  },
+  "homepage": "https://github.com/bbjiqqai/com.chinamobile.gdwy.signalLevel#readme"
 }
