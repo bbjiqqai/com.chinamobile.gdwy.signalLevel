@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plugin id="com.chinamobile.gdwy.signalLevel" version="1.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>SignalPlugin</name>
+    <js-module name="SignalLevel" src="www/SignalPlugin.js">
+        <clobbers target="SignalLevel" />
+    </js-module>
+	
+	<platform name="android">
+	<config-file target="res/xml/config.xml" parent="/*">
+		<feature name="SignalLevel">
+			<param name="android-package" value="com.chinamobile.gdwy.SignalLevel"/>
+		</feature>
+	</config-file>
+
+	<config-file target="AndroidManifest.xml" parent="/*">
+		<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+		<uses-permission android:name="android.permission.ACCESS_COARSE_UPDATES" />
+	    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+		<uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+		<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+		<uses-permission android:name="android.permission.CONTROL_LOCATION_UPDATES" tools:ignore="ProtectedPermissions" />
+	</config-file>
+
+	<source-file src="src/android/SignalLevel.java" target-dir="src/com/chinamobile/gdwy" />
+
+    </platform>
+
+</plugin>
