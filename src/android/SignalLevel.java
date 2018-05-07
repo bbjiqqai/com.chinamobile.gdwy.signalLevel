@@ -51,6 +51,8 @@ import org.json.JSONObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -115,8 +117,11 @@ public class SignalLevel extends CordovaPlugin {
     private JSONObject lastInfo = null;
     private boolean NO_PARSE_INTENT_VALS = false;
     String strength = "";
-    GsmCell gsmCell = new GsmCell(); //当前基站对象
     String networkOperatorName = "";   //运营商名字
+
+    public PhoneGeneralInfo phoneGeneralInfo;
+    public CellGeneralInfo serverCellInfo;
+    private List<CellGeneralInfo> HistoryServerCellList;
 
     /**
      * Executes the request and returns PluginResult.
@@ -165,13 +170,14 @@ public class SignalLevel extends CordovaPlugin {
     @Override
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         super.initialize(cordova, webView);
+        phoneGeneralInfo = new PhoneGeneralInfo();
+        serverCellInfo = new CellGeneralInfo();
         this.sockMan = (ConnectivityManager) cordova.getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
         mTelephonyManager = (TelephonyManager) cordova.getActivity().getSystemService(Context.TELEPHONY_SERVICE);
 
         mListener = new PhoneStatListener();
         mListenerLocation = new PhoneStatListener();
         mTelephonyManager.listen(mListener, PhoneStatListener.LISTEN_SIGNAL_STRENGTHS);
-        mTelephonyManager.listen(mListenerLocation, PhoneStateListener.LISTEN_CELL_LOCATION);
 
         this.connectionCallbackContext = null;
         if (hasPermisssion()) {
@@ -224,17 +230,6 @@ public class SignalLevel extends CordovaPlugin {
         }
     }
 
-    protected void onResume() {
-        LOG.e(LOG_TAG, "唤醒");
-        mTelephonyManager.listen(mListener, PhoneStatListener.LISTEN_SIGNAL_STRENGTHS);
-    }
-
-    protected void onPause() {
-        //用户不在当前页面时，停止监听
-        LOG.e(LOG_TAG, "死了");
-        mTelephonyManager.listen(mListener, PhoneStatListener.LISTEN_NONE);
-    }
-
 
     //--------------------------------------------------------------------------
     // LOCAL METHODS
@@ -284,17 +279,45 @@ public class SignalLevel extends CordovaPlugin {
 
         LOG.e(LOG_TAG, "Connection Type: " + type);
         LOG.e(LOG_TAG, "Connection Extra Info: " + extraInfo);
-        LOG.e(LOG_TAG, "Connection strength Info: " + strength);
 
         JSONObject connectionInfo = new JSONObject();
 
         try {
             connectionInfo.put("type", type);
             connectionInfo.put("extraInfo", extraInfo);
-            connectionInfo.put("strength", strength);
-            connectionInfo.put("gsmCell", gsmCell);
-            connectionInfo.put("name", mTelephonyManager.getNetworkOperatorName());
-            connectionInfo.put("networkType", mTelephonyManager.getNetworkType());
+
+            JSONObject phoneGeneralInfoJson = new JSONObject();
+            phoneGeneralInfoJson.put("operaterName", phoneGeneralInfo.operaterName);
+            phoneGeneralInfoJson.put("operaterId", phoneGeneralInfo.operaterId);
+            phoneGeneralInfoJson.put("mnc", phoneGeneralInfo.mnc);
+            phoneGeneralInfoJson.put("mcc", phoneGeneralInfo.mcc);
+            phoneGeneralInfoJson.put("phoneDatastate", phoneGeneralInfo.phoneDatastate);
+            phoneGeneralInfoJson.put("deviceId", phoneGeneralInfo.deviceId);
+            phoneGeneralInfoJson.put("Imei", phoneGeneralInfo.Imei);
+            phoneGeneralInfoJson.put("Imsi", phoneGeneralInfo.Imsi);
+            phoneGeneralInfoJson.put("serialNumber", phoneGeneralInfo.serialNumber);
+            phoneGeneralInfoJson.put("deviceSoftwareVersion", phoneGeneralInfo.deviceSoftwareVersion);
+            phoneGeneralInfoJson.put("phoneModel", phoneGeneralInfo.phoneModel);
+            phoneGeneralInfoJson.put("ratType", phoneGeneralInfo.ratType);
+            phoneGeneralInfoJson.put("sdk", phoneGeneralInfo.sdk);
+
+            connectionInfo.put("phoneGeneralInfoJson", phoneGeneralInfoJson);
+
+            JSONObject serverCellInfoJson = new JSONObject();
+            serverCellInfoJson.put("CId", serverCellInfo.CId);
+            serverCellInfoJson.put("pci", serverCellInfo.pci);
+            serverCellInfoJson.put("tac", serverCellInfo.tac);
+            serverCellInfoJson.put("rsrp", serverCellInfo.rsrp);
+            serverCellInfoJson.put("asulevel", serverCellInfo.asulevel);
+            serverCellInfoJson.put("RatType", serverCellInfo.RatType);
+            serverCellInfoJson.put("rssi", serverCellInfo.RatType);
+            serverCellInfoJson.put("rsrp", serverCellInfo.rssi);
+            serverCellInfoJson.put("sinr", serverCellInfo.sinr);
+            serverCellInfoJson.put("cqi", serverCellInfo.cqi);
+
+
+            connectionInfo.put("serverCellInfoJson", serverCellInfoJson);
+
 
         } catch (JSONException e) {
             LOG.d(LOG_TAG, e.getLocalizedMessage());
@@ -373,152 +396,179 @@ public class SignalLevel extends CordovaPlugin {
         @Override
         public void onSignalStrengthsChanged(SignalStrength signalStrength) {
             super.onSignalStrengthsChanged(signalStrength);
-//获取网络信号强度
-//获取0-4的5种信号级别，越大信号越好,但是api23开始才能用
-// int level = signalStrength.getLevel();
+
+            getPhoneGeneralInfo();
+            getServerCellInfo();
 
 
-            String signalInfo = signalStrength.toString();
-            String[] params = signalInfo.split(" ");
-
-
-            if (mTelephonyManager.getNetworkType() == TelephonyManager.NETWORK_TYPE_LTE) {
-                //4G网络 最佳范围   >-90dBm 越大越好
-
-                Method method1 = null;
-
+            if (phoneGeneralInfo.ratType == TelephonyManager.NETWORK_TYPE_LTE) {
                 try {
-                    method1 = signalStrength.getClass().getMethod("getDbm");
-                    strength = String.valueOf(method1.invoke(signalStrength));
-                } catch (NoSuchMethodException e) {
+                    serverCellInfo.rssi = (Integer) signalStrength.getClass().getMethod("getLteSignalStrength").invoke(signalStrength);
+                    serverCellInfo.rsrp = (Integer) signalStrength.getClass().getMethod("getLteRsrp").invoke(signalStrength);
+                    serverCellInfo.rsrq = (Integer) signalStrength.getClass().getMethod("getLteRsrq").invoke(signalStrength);
+                    serverCellInfo.sinr = (Integer) signalStrength.getClass().getMethod("getLteRssnr").invoke(signalStrength);
+                    serverCellInfo.cqi = (Integer) signalStrength.getClass().getMethod("getLteCqi").invoke(signalStrength);
+                } catch (Exception e) {
                     e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
+                    return;
                 }
-                LOG.e(LOG_TAG, strength + "lte");
-
-                int asu = signalStrength.getGsmSignalStrength();
-                int dbm = -113 + 2 * asu; //信号强度
-                LOG.e(LOG_TAG, dbm + "lte2");
-
-            } else if (mTelephonyManager.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSDPA ||
-                    mTelephonyManager.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSPA ||
-                    mTelephonyManager.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSUPA ||
-                    mTelephonyManager.getNetworkType() == TelephonyManager.NETWORK_TYPE_UMTS) {
-                //3G网络最佳范围  >-90dBm  越大越好  ps:中国移动3G获取不到  返回的无效dbm值是正数（85dbm）
-                //在这个范围的已经确定是3G，但不同运营商的3G有不同的获取方法，故在此需做判断 判断运营商与网络类型的工具类在最下方
-
-                String temp = mTelephonyManager.getNetworkOperator();
-                if (temp.equals("46000") || temp.equals("46002")) {
-                    int asu = signalStrength.getGsmSignalStrength();
-                    int dbm = -113 + 2 * asu;
-                    setDBM(dbm + "");
-                    LOG.e(LOG_TAG, strength + "other");
-                } else if (temp.equals("46001")) {
-                    int cdmaDbm = signalStrength.getCdmaDbm();
-                    setDBM(cdmaDbm + "");
-                    LOG.e(LOG_TAG, strength + "46001");
-                } else if (temp.equals("46003")) {
-                    int evdoDbm = signalStrength.getEvdoDbm();
-                    setDBM(evdoDbm + "");
-                    LOG.e(LOG_TAG, strength + "46003");
+            } else if (phoneGeneralInfo.ratType == TelephonyManager.NETWORK_TYPE_GSM) {
+                try {
+                    serverCellInfo.rssi = signalStrength.getGsmSignalStrength();
+                    serverCellInfo.rsrp = (Integer) signalStrength.getClass().getMethod("getGsmDbm").invoke(signalStrength);
+                    serverCellInfo.asulevel = (Integer) signalStrength.getClass().getMethod("getAsuLevel").invoke(signalStrength);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return;
                 }
-
-            } else {
-                //2G网络最佳范围>-90dBm 越大越好
-                int asu = signalStrength.getGsmSignalStrength();
-                int dbm = -113 + 2 * asu;
-                setDBM(dbm + "");
-                LOG.e(LOG_TAG, strength + "other");
+            } else if (phoneGeneralInfo.ratType == TelephonyManager.NETWORK_TYPE_TD_SCDMA) {
+                try {
+                    serverCellInfo.rssi = (Integer) signalStrength.getClass().getMethod("getTdScdmaLevel").invoke(signalStrength);
+                    serverCellInfo.rsrp = (Integer) signalStrength.getClass().getMethod("getTdScdmaDbm").invoke(signalStrength);
+                    serverCellInfo.asulevel = (Integer) signalStrength.getClass().getMethod("getAsuLevel").invoke(signalStrength);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return;
+                }
             }
+            Date now = new Date();
+            SimpleDateFormat formatter = new SimpleDateFormat("hh:mm:ss");
+            serverCellInfo.time = formatter.format(now);
 
-//            @SuppressLint("MissingPermission") List<NeighboringCellInfo> infos = mTelephonyManager.getNeighboringCellInfo();
-//            for (NeighboringCellInfo info : infos) {
-//                //获取邻居小区号
-//                int cid = info.getCid();
-//                //获取邻居小区LAC，LAC: 位置区域码。为了确定移动台的位置，每个GSM/PLMN的覆盖区都被划分成许多位置区，LAC则用于标识不同的位置区。
-//                info.getLac();
-//                info.getNetworkType();
-//                info.getPsc();
-//                //获取邻居小区信号强度
-//                info.getRssi();
-//            }
-
-
-            getOther();
         }
 
         @Override
         public void onCellLocationChanged(CellLocation location) {
             super.onCellLocationChanged(location);
-            if (location instanceof GsmCellLocation) {// gsm网络
-                getOther();
-            }
-
         }
     }
 
-    private void getOther() {
-        mTelephonyManager.getNetworkOperatorName();
 
+    @SuppressLint("MissingPermission")
+    public void getPhoneGeneralInfo() {
+        phoneGeneralInfo.operaterName = mTelephonyManager.getNetworkOperatorName();
+        phoneGeneralInfo.operaterId = mTelephonyManager.getNetworkOperator();
+        phoneGeneralInfo.mnc = Integer.parseInt(phoneGeneralInfo.operaterId.substring(0, 3));
+        phoneGeneralInfo.mcc = Integer.parseInt(phoneGeneralInfo.operaterId.substring(3));
+        phoneGeneralInfo.phoneDatastate = mTelephonyManager.getDataState();
+        phoneGeneralInfo.deviceId = mTelephonyManager.getDeviceId();
+        phoneGeneralInfo.Imei = mTelephonyManager.getSimSerialNumber();
+        phoneGeneralInfo.Imsi = mTelephonyManager.getSubscriberId();
+        phoneGeneralInfo.serialNumber = mTelephonyManager.getSimSerialNumber();
+        phoneGeneralInfo.deviceSoftwareVersion = android.os.Build.VERSION.RELEASE;
+        phoneGeneralInfo.phoneModel = android.os.Build.MODEL;
+        phoneGeneralInfo.ratType = mTelephonyManager.getNetworkType();
+        phoneGeneralInfo.sdk = android.os.Build.VERSION.SDK_INT;
+    }
 
+    @SuppressLint("MissingPermission")
+    public void getServerCellInfo() {
         try {
-            @SuppressLint("MissingPermission") List<NeighboringCellInfo> infos = mTelephonyManager.getNeighboringCellInfo();
-            for (NeighboringCellInfo info : infos) {
-                //获取邻居小区号
-                int cid = info.getCid();
-                //获取邻居小区LAC，LAC: 位置区域码。为了确定移动台的位置，每个GSM/PLMN的覆盖区都被划分成许多位置区，LAC则用于标识不同的位置区。
-                info.getLac();
-                info.getNetworkType();
-                info.getPsc();
-                //获取邻居小区信号强度
-                info.getRssi();
-                int ss = -131 + 2 * info.getRssi();
-                LOG.e(LOG_TAG, cid + " cid " + info.getLac() + " " + info.getNetworkType() + "   " + info.getRssi());
-
+            List<CellInfo> allCellinfo;
+            allCellinfo = mTelephonyManager.getAllCellInfo();
+            if (allCellinfo != null) {
+                CellInfo cellInfo = allCellinfo.get(0);
+                serverCellInfo.getInfoType = 1;
+                if (cellInfo instanceof CellInfoGsm) {
+                    CellInfoGsm cellInfoGsm = (CellInfoGsm) cellInfo;
+                    serverCellInfo.CId = cellInfoGsm.getCellIdentity().getCid();
+                    serverCellInfo.rsrp = cellInfoGsm.getCellSignalStrength().getDbm();
+                    serverCellInfo.asulevel = cellInfoGsm.getCellSignalStrength().getAsuLevel();
+                    serverCellInfo.lac = cellInfoGsm.getCellIdentity().getLac();
+                    serverCellInfo.RatType = TelephonyManager.NETWORK_TYPE_GSM;
+                } else if (cellInfo instanceof CellInfoWcdma) {
+                    CellInfoWcdma cellInfoWcdma = (CellInfoWcdma) cellInfo;
+                    serverCellInfo.CId = cellInfoWcdma.getCellIdentity().getCid();
+                    serverCellInfo.psc = cellInfoWcdma.getCellIdentity().getPsc();
+                    serverCellInfo.lac = cellInfoWcdma.getCellIdentity().getLac();
+                    serverCellInfo.rsrp = cellInfoWcdma.getCellSignalStrength().getDbm();
+                    serverCellInfo.asulevel = cellInfoWcdma.getCellSignalStrength().getAsuLevel();
+                    serverCellInfo.RatType = TelephonyManager.NETWORK_TYPE_UMTS;
+                } else if (cellInfo instanceof CellInfoLte) {
+                    CellInfoLte cellInfoLte = (CellInfoLte) cellInfo;
+                    serverCellInfo.CId = cellInfoLte.getCellIdentity().getCi();
+                    serverCellInfo.pci = cellInfoLte.getCellIdentity().getPci();
+                    serverCellInfo.tac = cellInfoLte.getCellIdentity().getTac();
+                    serverCellInfo.rsrp = cellInfoLte.getCellSignalStrength().getDbm();
+                    serverCellInfo.asulevel = cellInfoLte.getCellSignalStrength().getAsuLevel();
+                    serverCellInfo.RatType = TelephonyManager.NETWORK_TYPE_LTE;
+                }
+            } else
+            //for older devices
+            {
+                getServerCellInfoOnOlderDevices();
             }
         } catch (Exception e) {
-
+//            getServerCellInfoOnOlderDevices();
         }
 
+    }
 
+    void getServerCellInfoOnOlderDevices() {
         @SuppressLint("MissingPermission") GsmCellLocation location = (GsmCellLocation) mTelephonyManager.getCellLocation();
-        if (location != null) {
-            gsmCell.lac = ((GsmCellLocation) location).getLac() + "";
-            gsmCell.cid = ((GsmCellLocation) location).getCid() + "";
-            String mccMnc = mTelephonyManager.getNetworkOperator();
-            if (mccMnc != null && mccMnc.length() >= 5) {
-                gsmCell.mcc = mccMnc.substring(0, 3);
-                gsmCell.mnc = mccMnc.substring(3, 5);
-            }
-            LOG.e(LOG_TAG, gsmCell.toString());
+        serverCellInfo.getInfoType = 0;
+        serverCellInfo.CId = location.getCid();
+        serverCellInfo.tac = location.getLac();
+        serverCellInfo.psc = location.getPsc();
+        serverCellInfo.type = phoneGeneralInfo.ratType;
+    }
+
+    void updateHistoryCellList(CellGeneralInfo serverinfo) {
+        CellGeneralInfo newcellInfo = (CellGeneralInfo) serverinfo;
+        HistoryServerCellList.add(newcellInfo);
+    }
+
+    class PhoneGeneralInfo {
+        public String serialNumber;
+        public String operaterName;
+        public String operaterId;
+        public String deviceId;
+        public String deviceSoftwareVersion;
+        public String Imsi;
+        public String Imei;
+        public int mnc;
+        public int mcc;
+        public int ratType = TelephonyManager.NETWORK_TYPE_UNKNOWN;
+        public int phoneDatastate;
+        public String phoneModel;
+        public int sdk;
+    }
+
+    class CellGeneralInfo {
+        public int type;
+        public int CId;
+        public int lac;
+        public int tac;
+        public int psc;
+        public int pci;
+        public int RatType = TelephonyManager.NETWORK_TYPE_UNKNOWN;
+        public int rsrp;
+        public int rsrq;
+        public int sinr;
+        public int rssi;
+        public int cqi;
+        public int asulevel;
+        public int getInfoType;
+        public String time;
+
+    }
+
+
+    @Override
+    public void onPause(boolean multitasking) {
+        super.onPause(multitasking);
+        if (mTelephonyManager != null) {
+            mTelephonyManager.listen(mListener, PhoneStatListener.LISTEN_NONE);
         }
-        updateConnectionInfo(sockMan.getActiveNetworkInfo());
     }
 
-
-    /**
-     * 基站信息结构体
-     */
-    public class GsmCell {
-        public String mcc;
-        public String mnc;
-        public String lac;
-        public String cid;
-
-        @Override
-        public String toString() {
-            return "mcc: " + mcc + " mnc " + mnc + " lac " + lac + "  cid  " + cid;
+    @Override
+    public void onResume(boolean multitasking) {
+        super.onResume(multitasking);
+        if (mTelephonyManager != null) {
+            mTelephonyManager.listen(mListener, PhoneStatListener.LISTEN_SIGNAL_STRENGTHS);
         }
     }
 
-    /**
-     * 经纬度信息结构体
-     */
-    public class SItude {
-        public String latitude;
-        public String longitude;
-    }
+
 }
