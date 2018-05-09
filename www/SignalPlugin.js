@@ -18,7 +18,7 @@ var utils = require('cordova/utils');
 //};
 
 function SignalLevel() {
-    this.data = 'unknown';
+    this.data = '';
 }
 
 
@@ -26,6 +26,9 @@ SignalLevel.prototype.getInfo = function (successCallback, errorCallback) {
     exec(successCallback, errorCallback, "SignalLevel", "getSignal", []);
 };
 
+SignalLevel.prototype.getData = function () {
+    return this.data;
+}
 
 channel.createSticky('onCordovaConnectionReady');
 channel.waitForInitialization('onCordovaConnectionReady');
@@ -37,7 +40,6 @@ var timeout = 2000;
 
 
 channel.onCordovaReady.subscribe(function () {
-    debugger
     me.getInfo(function (info) {
             me.data = info;
             if (info === 'none') {
@@ -69,3 +71,5 @@ channel.onCordovaReady.subscribe(function () {
             console.log('getLevel ' + e);
         });
 });
+
+module.exports = me;

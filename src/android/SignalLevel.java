@@ -136,7 +136,10 @@ public class SignalLevel extends CordovaPlugin {
         if (action.equals("getSignal")) {
             try {
                 if (hasPermisssion()) {
-                    connectionCallbackContext.success(lastInfo);
+                    PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, lastInfo);
+                    pluginResult.setKeepCallback(true);
+                    callbackContext.sendPluginResult(pluginResult);
+
                     return true;
                 } else {
                     PermissionHelper.requestPermissions(this, 0, permissions);
@@ -178,6 +181,7 @@ public class SignalLevel extends CordovaPlugin {
         mListener = new PhoneStatListener();
         mListenerLocation = new PhoneStatListener();
         mTelephonyManager.listen(mListener, PhoneStatListener.LISTEN_SIGNAL_STRENGTHS);
+        mTelephonyManager.listen(mListenerLocation, PhoneStateListener.LISTEN_CELL_LOCATION);
 
         this.connectionCallbackContext = null;
         if (hasPermisssion()) {
@@ -307,11 +311,11 @@ public class SignalLevel extends CordovaPlugin {
             serverCellInfoJson.put("CId", serverCellInfo.CId);
             serverCellInfoJson.put("pci", serverCellInfo.pci);
             serverCellInfoJson.put("tac", serverCellInfo.tac);
-            serverCellInfoJson.put("rsrp", serverCellInfo.rsrp);
+            serverCellInfoJson.put("rsrq", serverCellInfo.rsrq);
             serverCellInfoJson.put("asulevel", serverCellInfo.asulevel);
             serverCellInfoJson.put("RatType", serverCellInfo.RatType);
-            serverCellInfoJson.put("rssi", serverCellInfo.RatType);
-            serverCellInfoJson.put("rsrp", serverCellInfo.rssi);
+            serverCellInfoJson.put("rssi", serverCellInfo.rssi);
+            serverCellInfoJson.put("rsrp", serverCellInfo.rsrp);
             serverCellInfoJson.put("sinr", serverCellInfo.sinr);
             serverCellInfoJson.put("cqi", serverCellInfo.cqi);
 
@@ -403,11 +407,16 @@ public class SignalLevel extends CordovaPlugin {
 
             if (phoneGeneralInfo.ratType == TelephonyManager.NETWORK_TYPE_LTE) {
                 try {
+                    Method method1 = null;
+                    method1 = signalStrength.getClass().getMethod("getDbm");
+                    strength = String.valueOf(method1.invoke(signalStrength));
                     serverCellInfo.rssi = (Integer) signalStrength.getClass().getMethod("getLteSignalStrength").invoke(signalStrength);
                     serverCellInfo.rsrp = (Integer) signalStrength.getClass().getMethod("getLteRsrp").invoke(signalStrength);
                     serverCellInfo.rsrq = (Integer) signalStrength.getClass().getMethod("getLteRsrq").invoke(signalStrength);
                     serverCellInfo.sinr = (Integer) signalStrength.getClass().getMethod("getLteRssnr").invoke(signalStrength);
                     serverCellInfo.cqi = (Integer) signalStrength.getClass().getMethod("getLteCqi").invoke(signalStrength);
+
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     return;
@@ -501,6 +510,7 @@ public class SignalLevel extends CordovaPlugin {
         } catch (Exception e) {
 //            getServerCellInfoOnOlderDevices();
         }
+        updateConnectionInfo(sockMan.getActiveNetworkInfo());
 
     }
 
@@ -567,6 +577,7 @@ public class SignalLevel extends CordovaPlugin {
         super.onResume(multitasking);
         if (mTelephonyManager != null) {
             mTelephonyManager.listen(mListener, PhoneStatListener.LISTEN_SIGNAL_STRENGTHS);
+            mTelephonyManager.listen(mListenerLocation, PhoneStateListener.LISTEN_CELL_LOCATION);
         }
     }
 
