@@ -30,8 +30,7 @@ SignalLevel.prototype.getData = function () {
     return this.data;
 }
 
-channel.createSticky('onCordovaConnectionReady');
-channel.waitForInitialization('onCordovaConnectionReady');
+
 
 
 var me = new SignalLevel();
