@@ -1,6 +1,6 @@
 {
   "name": "com.chinamobile.gdwy.signallevel",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/bbjiqqai/com.chinamobile.gdwy.signalLevel/issues"
   },
-  "homepage": "https://github.com/bbjiqqai/com.chinamobile.gdwy.signalLevel#readme"
+  "homepage": "https://github.com/bbjiqqai/com.chinamobile.gdwy.signalLevel#readme",
+  "keywords": [
+    "87884731"
+  ]
 }
