@@ -114,7 +114,7 @@ public class SignalLevel extends CordovaPlugin {
     TelephonyManager mTelephonyManager;
     ConnectivityManager sockMan;
     BroadcastReceiver receiver; //注册广播
-    private JSONObject lastInfo = null;
+    private JSONObject lastInfo = new JSONObject();
     private boolean NO_PARSE_INTENT_VALS = false;
     String strength = "";
     String networkOperatorName = "";   //运营商名字
