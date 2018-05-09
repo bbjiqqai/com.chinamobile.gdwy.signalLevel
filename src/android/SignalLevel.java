@@ -443,6 +443,7 @@ public class SignalLevel extends CordovaPlugin {
             Date now = new Date();
             SimpleDateFormat formatter = new SimpleDateFormat("hh:mm:ss");
             serverCellInfo.time = formatter.format(now);
+            updateConnectionInfo(sockMan.getActiveNetworkInfo());
 
         }
 
@@ -510,7 +511,6 @@ public class SignalLevel extends CordovaPlugin {
         } catch (Exception e) {
 //            getServerCellInfoOnOlderDevices();
         }
-        updateConnectionInfo(sockMan.getActiveNetworkInfo());
 
     }
 
